@@ -1,89 +1,3 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-auth.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyDfCoD2j3tbHJ2rLi9CCmI6d4cR3GUcBQs",
-  authDomain: "av3-dsw.firebaseapp.com",
-  projectId: "av3-dsw",
-  storageBucket: "av3-dsw.firebasestorage.app",
-  messagingSenderId: "1039331780136",
-  appId: "1:1039331780136:web:849b834732d43f34b2371d"
-};
-
-const app = initializeApp(firebaseConfig);
-
-// Inicialização do Auth
-const auth = getAuth(app);
-
-// Quero usar o Google Provider para autenticar com Google 
-const provider = new GoogleAuthProvider();
-
-// variável global para armazenar o usuário autenticado
-let user = null;
-
-// autenticação tela de login
-const btnGoogle = document.querySelector('#GoogleBtn');
-
-if (btnGoogle) {
-  btnGoogle.addEventListener('click', async () => {
-    try {
-      const result = await signInWithPopup(auth, provider);
-      if (result) {
-        // Após logar com sucesso, manda para a tela principal do CRUD
-        window.location.href = 'index.html';
-      }
-    } catch (error) {
-      console.error("Erro na autenticação:", error);
-    }
-  });
-}
-
-
-// Monitora se o usuário está logado. Roda automático ao abrir a página!
-onAuthStateChanged(auth, async (user) => {
-  if (user) {
-    // Se o usuário já está logado e tentou entrar na tela de login, joga ele para o CRUD
-    if (window.location.pathname.includes('login.html')) {
-      window.location.href = 'index.html';
-      return;
-    }
-
-    // Mostra os dados do usuário na tela do CRUD
-    const divUser = document.querySelector('#user');
-    if (divUser) {
-      divUser.innerHTML = `
-        <p><strong>Nome:</strong> ${user.displayName}</p>
-        <p><strong>Email:</strong> ${user.email}</p>
-      `;
-    }
-    
-    try {
-      token = await user.getIdToken(); 
-
-      const result = await fetch('http://localhost:3000/data', {
-          headers: { Authorization: `Bearer ${token}` }
-      });
-
-      const data = await result.json();
-      console.log("Dados recebidos do servidor:", data);
-        
-      // Só carrega a lista de livros se a tabela existir na página atual
-      if (tbody) {
-        listarLivros();
-      }
-
-    } catch (error) {
-        console.error("Erro ao buscar dados do servidor:", error);
-    }
-
-  } else {
-    // Se NÃO está logado e NÃO está na página de login, manda para a tela de login
-    if (!window.location.pathname.includes('login.html')) {
-      window.location.href = 'login.html';
-    }
-  }
-});
-
 const API = 'http://localhost:3000/livro';
 
 const form = document.getElementById('form-livro');
@@ -222,4 +136,8 @@ async function logout() {
   } catch (error) {
     console.error("Erro ao fazer logout:", error);
   }
+}
+
+if (tbody) {
+  listarLivros();
 }

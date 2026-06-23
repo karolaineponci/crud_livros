@@ -1,86 +1,91 @@
 import express from 'express';
 import cors from 'cors';
+import mysql from 'mysql2/promise';
 
-/* CONFIGURAÇÃO DO FIREBASE ADMIN SDK */
-import { initializeApp, cert } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
-import serviceAccount from './serviceAccountKey.json' with { type: 'json' };
-
-const firebaseApp = initializeApp({
-    credential: cert(serviceAccount)
+// CONEXÃO COM O SEU BANCO DE DADOS MYSQL
+const pool = mysql.createPool({
+    host: 'localhost',
+    password: '29062003',       
+    database: 'dsw_crud'
 });
-const auth = getAuth(firebaseApp);
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-/* MIDDLEWARE DE AUTENTICAÇÃO */
-const authMiddleware = async (req, res, next) => {
-    const accessToken = req.headers.authorization?.split(' ')[1];
-    if(!accessToken){
-        return res.status(401).json({ error: 'Token de acesso não fornecido' });
-    }
+// 1. LISTAR TODOS OS LIVROS DO BANCO
+app.get('/livro', async (req, res) => {
     try {
-        const decodedToken = await auth.verifyIdToken(accessToken);
-        req.user = decodedToken;
-        console.log('Usuário autenticado:', decodedToken);
+        const [linhas] = await pool.query('SELECT * FROM livros');
+        res.json(linhas);
     } catch (error) {
-        console.log(error);
-        return res.status(401).json({ error: 'Token de acesso inválido' });
+        console.error(error);
+        res.status(500).json({ error: 'Erro ao buscar livros no banco de dados.' });
     }
-    next();
-}
-
-// Banco de dados temporário em memória para os Livros do seu CRUD
-let livros = [
-    { id: 1, titulo: "O Senhor dos Anéis", preco: 49.90, estoque: 10, criado_em: "2026-06-20T14:30:00.000Z" },
-    { id: 2, titulo: "1984", preco: 34.90, estoque: 7, criado_em: "2026-06-21T09:15:00.000Z" }
-];
-let proximoId = 3;
-
-// ROTAS DO CRUD DE LIVROS (AGORA PROTEGIDAS!)
-app.get('/livro', authMiddleware, (req, res) => {
-    res.json(livros);
 });
 
-app.get('/livro/:id', authMiddleware, (req, res) => {
-    const id = parseInt(req.params.id, 10);
-    const livro = livros.find(l => l.id === id);
-    if (!livro) return res.status(404).json({ error: 'Livro não encontrado.' });
-    res.json(livro);
+// 2. BUSCAR UM LIVRO ESPECÍFICO PELO ID
+app.get('/livro/:id', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id, 10);
+        const [linhas] = await pool.query('SELECT * FROM livros WHERE id = ?', [id]);
+        
+        if (linhas.length === 0) return res.status(404).json({ error: 'Livro não encontrado.' });
+        res.json(linhas[0]);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Erro ao buscar o livro.' });
+    }
 });
 
-app.post('/livro', authMiddleware, (req, res) => {
-    const { titulo, preco, estoque } = req.body;
-    const novoLivro = {
-        id: proximoId++,
-        titulo,
-        preco: parseFloat(preco),
-        estoque: parseInt(estoque, 10),
-        criado_em: new Date().toISOString()
-    };
-    livros.push(novoLivro);
-    res.status(201).json(novoLivro);
+// 3. ADICIONAR NOVO LIVRO NO MYSQL
+app.post('/livro', async (req, res) => {
+    try {
+        const { titulo, preco, estoque } = req.body;
+        
+        const [resultado] = await pool.query(
+            'INSERT INTO livros (titulo, preco, estoque) VALUES (?, ?, ?)',
+            [titulo, parseFloat(preco), parseInt(estoque, 10)]
+        );
+
+        res.status(201).json({ id: resultado.insertId, titulo, preco, estoque });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Erro ao salvar o livro.' });
+    }
 });
 
-app.put('/livro/:id', authMiddleware, (req, res) => {
-    const id = parseInt(req.params.id, 10);
-    const { titulo, preco, estoque } = req.body;
-    const index = livros.findIndex(l => l.id === id);
-    if (index === -1) return res.status(404).json({ error: 'Livro não encontrado.' });
+// 4. ATUALIZAR UM LIVRO NO MYSQL
+app.put('/livro/:id', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id, 10);
+        const { titulo, preco, estoque } = req.body;
 
-    livros[index] = { ...livros[index], titulo, preco: parseFloat(preco), estoque: parseInt(estoque, 10) };
-    res.json(livros[index]);
+        const [resultado] = await pool.query(
+            'UPDATE livros SET titulo = ?, preco = ?, estoque = ? WHERE id = ?',
+            [titulo, parseFloat(preco), parseInt(estoque, 10), id]
+        );
+
+        if (resultado.affectedRows === 0) return res.status(404).json({ error: 'Livro não encontrado.' });
+        res.json({ id, titulo, preco, estoque });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Erro ao atualizar o livro.' });
+    }
 });
 
-app.delete('/livro/:id', authMiddleware, (req, res) => {
-    const id = parseInt(req.params.id, 10);
-    const index = livros.findIndex(l => l.id === id);
-    if (index === -1) return res.status(404).json({ error: 'Livro não encontrado.' });
+// 5. DELETAR UM LIVRO NO MYSQL
+app.delete('/livro/:id', async (req, res) => {
+    try {
+        const id = parseInt(req.params.id, 10);
+        const [resultado] = await pool.query('DELETE FROM livros WHERE id = ?', [id]);
 
-    livros.splice(index, 1);
-    res.status(204).send();
+        if (resultado.affectedRows === 0) return res.status(404).json({ error: 'Livro não encontrado.' });
+        res.status(204).send();
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Erro ao deletar o livro.' });
+    }
 });
 
 app.listen(3000, () => console.log(`Servidor rodando na porta 3000`));
