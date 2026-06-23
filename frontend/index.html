@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>CRUD de Livros</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="painel-usuario">
+    <p>Dados do usuário:</p>
+    <div id="user">Carregando...</div>
+  </div>
+
+  <h1>Cadastro de Livros </h1>
+
+  <form id="form-livro">
+    <input type="hidden" id="livro-id">
+
+    <label>
+      Título:
+      <input type="text" id="titulo" required>
+    </label>
+
+    <label>
+      Preço:
+      <input type="number" id="preco" step="0.01" required>
+    </label>
+
+    <label>
+      Estoque:
+      <input type="number" id="estoque" value="0" required>
+    </label>
+
+    <label>
+      Criado em:
+      <input type="text" id="criadoem" disabled placeholder="Gerado automaticamente">
+    </label>
+
+    <div class="botoes">
+      <button type="submit" id="btn-salvar">Salvar</button>
+      <button type="button" id="btn-cancelar" hidden>Cancelar</button>
+    </div>
+  </form>
+
+  <h2>Lista de Livros</h2>
+  <table id="tabela-livros">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Titulo</th>
+        <th>Preço</th>
+        <th>Estoque</th>
+        <th>Criado em</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script type="module" src="script.js"></script>
+</body>
+</html>
